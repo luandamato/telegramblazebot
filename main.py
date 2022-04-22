@@ -4,8 +4,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as CondicaoExperada
 from selenium.common.exceptions import *
-import random
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver import ActionChains
+import random
 from Roleta import Roleta
 import pyautogui
 import pandas as pd
@@ -73,6 +74,7 @@ class Main:
             CondicaoExperada.element_to_be_clickable((By.XPATH, '/html/body/div[1]/main/div[1]/div[3]/ul/li[3]/a')))
 
         self.telegram = Telegram(self.nav_telegram, self.wait_telegram)
+
         self.startRoleta()
 
 
@@ -111,8 +113,8 @@ class Main:
 
         mensagem_aviso = pyautogui.prompt('mensagem de aviso \n("{cor}" será substituido pelo cor a ser jogada seguindo a estrategia)')
         mensagem_confirmcao = pyautogui.prompt('mensagem de confirmação de aposta \n("{cor}" será substituido pelo cor a ser jogada seguindo a estrategia)')
-        mensagem_win = pyautogui.prompt('mensagem de win \n("{cor}" será substituido pelo cor resultado da roleta)')
-        mensagem_loss = pyautogui.prompt('mensagem de loss \n("{cor}" será substituido pelo cor resultado da roleta)')
+        mensagem_win = pyautogui.prompt('mensagem de win \n("{perdas}" será substituido pela quantidade de perdas nessa entrada)')
+        mensagem_loss = pyautogui.prompt('mensagem de loss \n("{perdas}" será substituido pela quantidade de perdas nessa entrada)')
 
         roleta = Roleta(self.nav_blaze, self.wait_blaze, estrategias, mensagem_aviso, mensagem_confirmcao, mensagem_win, mensagem_loss, self.telegram)
         time.sleep(1)
@@ -147,10 +149,32 @@ class Main:
 
 
 main = Main()
-# main.start()
+#main.start()
 
 try:
     main.start()
 
 except:
     main.error()
+
+def teste():
+    JS_ADD_TEXT_TO_INPUT = """
+      var elm = arguments[0], txt = arguments[1];
+      elm.value += txt;
+      elm.dispatchEvent(new Event('change'));
+      """
+
+    browser = webdriver.Chrome(ChromeDriverManager().install())
+    browser.get("https://google.com/")
+    elem = browser.find_element_by_name('q')
+
+    text = "olaaaaa"
+
+    browser.execute_script(JS_ADD_TEXT_TO_INPUT, elem, text)
+    time.sleep(1)
+    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
+    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
+    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
+    time.sleep(2)
+
+# teste()

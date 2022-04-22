@@ -5,10 +5,13 @@ import time
 from datetime import datetime
 from Telegram import Telegram
 
+
 class Roleta:
-    def __init__(self, Driver, Await, estrategias, mensagem_aviso, mensagem_confirmcao, mensagem_win, mensagem_loss, telegram):
+    def __init__(self, Driver, Await, estrategias, mensagem_aviso, mensagem_confirmcao, mensagem_win, mensagem_loss,
+                 telegram):
         self.nav = Driver
         self.wait = Await
+        self.horario_ultimo = ""
         self.estrategias = estrategias
         self.mensagem_aviso = mensagem_aviso
         self.mensagem_confirmcao = mensagem_confirmcao
@@ -16,10 +19,12 @@ class Roleta:
         self.mensagem_loss = mensagem_loss
         self.lista_resultados = []
         self.apostou = False
+        self.enviou_alerta = False
+        self.acao_atual = False
         self.telegram = telegram
         self.cor_aposta = ""
         self.count_perdas = 0
-
+        print(estrategias)
 
     def getUltimoResultadoRoleta(self):
         self.ultimo_resultado = self.nav.find_element_by_xpath('//*[@id="roulette-recent"]/div/div[1]/div[1]/div/div')
@@ -30,9 +35,6 @@ class Roleta:
         return self.ultimo_resultado
 
     def printUltimoResultado(self):
-        #self.getUltimoResultadoRoleta()
-        self.getHoraResultado()
-        # print(f"cor = {self.cor_ultimo}, numero = {self.numero_ultimo}, hora = {self.horario_ultimo}\n")
         if len(self.lista_resultados) > 10:
             self.lista_resultados.pop(0)
 
@@ -45,18 +47,6 @@ class Roleta:
     def getCor(self):
         return self.cor_ultimo
 
-    def getHoraResultado(self):
-        time.sleep(1)
-        botao_Resultado = self.wait.until(CondicaoExperada.element_to_be_clickable((By.XPATH, '//*[@id="roulette-recent"]/div/div[1]/div[1]')))
-        botao_Resultado.click()
-        lbl_horario = self.wait.until(CondicaoExperada.presence_of_element_located((By.XPATH, '//*[@id="roulette-game-history"]/div[1]/h2')))
-
-        lbl = lbl_horario.get_attribute('innerHTML')
-        arrHorario = lbl.split(' ')
-        self.horario_ultimo = arrHorario[len(arrHorario) - 2]
-        botao_fechar = self.wait.until(CondicaoExperada.element_to_be_clickable((By.XPATH, '//*[@id="root"]/main/div[3]/div/div[1]')))
-        botao_fechar.click()
-
     def verificaAvisoPrevio(self, lista_resultados, lista_estrategia):
         lista_estrategia.pop(-1)
         lista_estrategia.pop(-1)
@@ -65,7 +55,7 @@ class Roleta:
             for _ in range(remover):
                 lista_resultados.pop(0)
 
-        #print(f"comparando estrategia {lista_estrategia} com resultados {lista_resultados} para aviso previo")
+        # print(f"comparando estrategia {lista_estrategia} com resultados {lista_resultados} para aviso previo")
         return lista_estrategia == lista_resultados
 
     def verificaAvisoAposta(self, lista_resultados, lista_estrategia):
@@ -75,38 +65,45 @@ class Roleta:
             for _ in range(remover):
                 lista_resultados.pop(0)
 
-        #print(f"comparando estrategia {lista_estrategia} com resultados {lista_resultados} para apostar\n")
+        # print(f"comparando estrategia {lista_estrategia} com resultados {lista_resultados} para apostar\n")
         return lista_estrategia == lista_resultados
 
     def verificaSinal(self):
+        self.acao_atual = False
         if self.apostou:
-            if self.cor_ultimo.replace('red', 'v').replace('black', 'p').replace('white', 'b') == self.cor_aposta:
-                frase = self.mensagem_win.replace("{cor}", self.cor_aposta.replace("p", "PRETO").replace("v", "VERMELHO").replace("b", "BRANCO"))
+            if self.cor_ultimo.replace('red', 'v').replace('black', 'p') == self.cor_aposta or self.cor_ultimo == "white":
+                frase = self.mensagem_win.replace("{cor}", self.cor_aposta.replace("p", "⚫").replace("v", "🔴").replace("b", "⬜")).replace("{perdas}", f'{self.count_perdas}')
                 self.telegram.enviarMensagem(frase)
-                print(frase)
                 self.apostou = False
+                self.count_perdas = 0
             else:
                 self.count_perdas += 1
 
             if self.count_perdas >= 3:
-                frase = self.mensagem_loss.replace("{cor}", self.cor_aposta.replace("p", "PRETO").replace("v", "VERMELHO").replace("b", "BRANCO"))
+                frase = self.mensagem_loss.replace("{cor}", self.cor_aposta.replace("p", "⚫").replace("v", "🔴").replace("b", "⬜")).replace("{perdas}", f'{self.count_perdas}')
                 self.telegram.enviarMensagem(frase)
-                print(frase)
                 self.apostou = False
+                self.count_perdas = 0
 
-        for estrategia in self.estrategias:
-            estrategia_lista = estrategia.split(",")
-            if self.verificaAvisoPrevio(self.lista_resultados.copy(), estrategia_lista.copy()):
-                frase = self.mensagem_aviso.replace("{cor}", estrategia_lista[-1].replace("p", "PRETO").replace("v", "VERMELHO").replace("b", "BRANCO"))
-                print(frase)
-                self.telegram.enviarMensagem(frase)
-                break
-            elif self.verificaAvisoAposta(self.lista_resultados.copy(), estrategia_lista.copy()):
-                frase = self.mensagem_confirmcao.replace("{cor}", estrategia_lista[-1].replace("p", "PRETO").replace("v", "VERMELHO").replace("b", "BRANCO"))
-                print(frase)
-                self.telegram.enviarMensagem(frase)
-                self.apostou = True
-                self.cor_aposta = estrategia_lista[-1]
-                break
+        else:
+            for estrategia in self.estrategias:
+                estrategia_lista = estrategia.split(",")
+                if self.verificaAvisoAposta(self.lista_resultados.copy(), estrategia_lista.copy()):
+                    frase = self.mensagem_confirmcao.replace("{cor}", (estrategia_lista[-1].replace("p", "⚫").replace("v", "🔴") + " ⚪"))
+                    self.telegram.enviarMensagem(frase)
+                    self.apostou = True
+                    self.enviou_alerta = False
+                    self.cor_aposta = estrategia_lista[-1]
+                    self.acao_atual = True
+                    break
+                elif self.verificaAvisoPrevio(self.lista_resultados.copy(), estrategia_lista.copy()):
+                    frase = self.mensagem_aviso.replace("{cor}", estrategia_lista[-1].replace("p", "⚫").replace("v", "🔴").replace("b", "⚪"))
+                    self.telegram.enviarMensagem(frase)
+                    self.enviou_alerta = True
+                    self.acao_atual = True
+                    break
 
+        if self.enviou_alerta and not self.acao_atual:
+            self.enviou_alerta = False
+            self.telegram.apagarUltimaMensagem()
 
