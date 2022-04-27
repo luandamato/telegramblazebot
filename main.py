@@ -149,32 +149,22 @@ class Main:
 
 
 main = Main()
-#main.start()
+main.start()
 
-try:
-    main.start()
-
-except:
-    main.error()
+# try:
+#     main.start()
+#
+# except:
+#     main.error()
 
 def teste():
-    JS_ADD_TEXT_TO_INPUT = """
-      var elm = arguments[0], txt = arguments[1];
-      elm.value += txt;
-      elm.dispatchEvent(new Event('change'));
-      """
+    frase = "{link:google.com} testanto frase com link no inicio"
+    palavras = frase.split(" ", 1)
+    if ("{link" in palavras[0]):
+        link = palavras[0].split(":")[1][:-1]
+        frase = frase.split(" ", 1)[1]
 
-    browser = webdriver.Chrome(ChromeDriverManager().install())
-    browser.get("https://google.com/")
-    elem = browser.find_element_by_name('q')
+    print(link)
+    print(frase)
 
-    text = "olaaaaa"
-
-    browser.execute_script(JS_ADD_TEXT_TO_INPUT, elem, text)
-    time.sleep(1)
-    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
-    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
-    elem.send_keys(Keys.SHIFT, Keys.ARROW_LEFT)
-    time.sleep(2)
-
-# teste()
+#teste()

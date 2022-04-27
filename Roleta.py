@@ -24,6 +24,7 @@ class Roleta:
         self.telegram = telegram
         self.cor_aposta = ""
         self.count_perdas = 0
+        self.link = ""
         print(estrategias)
 
     def getUltimoResultadoRoleta(self):
@@ -46,6 +47,10 @@ class Roleta:
 
     def getCor(self):
         return self.cor_ultimo
+
+    def limparHistorico(self):
+        while len(self.lista_resultados) > 2:
+            self.lista_resultados.pop(0)
 
     def verificaAvisoPrevio(self, lista_resultados, lista_estrategia):
         lista_estrategia.pop(-1)
@@ -70,40 +75,65 @@ class Roleta:
 
     def verificaSinal(self):
         self.acao_atual = False
+
+        if self.enviou_alerta:
+            self.enviou_alerta = False
+            self.telegram.apagarUltimaMensagem()
+
         if self.apostou:
             if self.cor_ultimo.replace('red', 'v').replace('black', 'p') == self.cor_aposta or self.cor_ultimo == "white":
-                frase = self.mensagem_win.replace("{cor}", self.cor_aposta.replace("p", "⚫").replace("v", "🔴").replace("b", "⬜")).replace("{perdas}", f'{self.count_perdas}')
-                self.telegram.enviarMensagem(frase)
+                frase = self.formatarMensagem(self.mensagem_win, self.cor_aposta)
+                if self.cor_ultimo == "white":
+                    frase = "GREEN BRANCO ⚪⚪⚪"
+                self.telegram.responderUltimaMensagem(frase)
+                # self.telegram.enviarMensagem(frase)
                 self.apostou = False
                 self.count_perdas = 0
+                self.limparHistorico()
             else:
                 self.count_perdas += 1
 
             if self.count_perdas >= 3:
-                frase = self.mensagem_loss.replace("{cor}", self.cor_aposta.replace("p", "⚫").replace("v", "🔴").replace("b", "⬜")).replace("{perdas}", f'{self.count_perdas}')
-                self.telegram.enviarMensagem(frase)
+                frase = self.formatarMensagem(self.mensagem_loss, self.cor_aposta)
+                self.telegram.responderUltimaMensagem(frase)
+                # self.telegram.enviarMensagem(frase)
                 self.apostou = False
                 self.count_perdas = 0
+                self.limparHistorico()
 
         else:
             for estrategia in self.estrategias:
                 estrategia_lista = estrategia.split(",")
                 if self.verificaAvisoAposta(self.lista_resultados.copy(), estrategia_lista.copy()):
-                    frase = self.mensagem_confirmcao.replace("{cor}", (estrategia_lista[-1].replace("p", "⚫").replace("v", "🔴") + " ⚪"))
-                    self.telegram.enviarMensagem(frase)
+                    frase = self.formatarMensagem(self.mensagem_confirmcao, estrategia_lista[-1])
+                    self.telegram.enviarMensagemTeste(texto=frase, palavra=frase.split(' ')[-1], link=self.link)
                     self.apostou = True
                     self.enviou_alerta = False
                     self.cor_aposta = estrategia_lista[-1]
                     self.acao_atual = True
                     break
                 elif self.verificaAvisoPrevio(self.lista_resultados.copy(), estrategia_lista.copy()):
-                    frase = self.mensagem_aviso.replace("{cor}", estrategia_lista[-1].replace("p", "⚫").replace("v", "🔴").replace("b", "⚪"))
-                    self.telegram.enviarMensagem(frase)
+                    frase = self.formatarMensagem(self.mensagem_aviso, estrategia_lista[-1])
+                    self.telegram.enviarMensagemTeste(texto=frase, palavra=frase.split(' ')[-1], link=self.link)
+                    # self.telegram.enviarMensagem(frase)
                     self.enviou_alerta = True
                     self.acao_atual = True
                     break
 
-        if self.enviou_alerta and not self.acao_atual:
-            self.enviou_alerta = False
-            self.telegram.apagarUltimaMensagem()
+        #se for apagar so se nao efetivar o sinal
+        # if self.enviou_alerta and not self.acao_atual:
+        #     self.enviou_alerta = False
+        #     self.telegram.apagarUltimaMensagem()
+
+    def formatarMensagem(self, texto, cor):
+        perdas = f'{self.count_perdas}'.replace('0', "SG").replace('1', 'G1').replace('2', 'G2')
+        frase = texto.replace("{cor}", cor.replace("p", "⚫").replace("v", "🔴").replace("b","⚪")).replace("{perdas}", perdas)
+
+        self.link = ""
+        palavras = frase.split(" ", 1)
+        if ("{link" in palavras[0]):
+            self.link = palavras[0].split(":", 1)[1][:-1]
+            frase = frase.split(" ", 1)[1]
+
+        return frase
 
